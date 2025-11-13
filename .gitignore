@@ -32,4 +32,4 @@ build/
 *.json
 ### VS Code ###
 .vscode/
-email.properties
+email.propertiessrc/main/resources/config/firebase-key.json
