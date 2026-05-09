@@ -25,6 +25,10 @@ jobs:
           distribution: 'microsoft'
 
       - name: Build with Maven
+        env:
+            DB_URL: jdbc:mysql://cambiazo-bd.mysql.database.azure.com:3306/cambiazo?useSSL=true&requireSSL=true&sslMode=REQUIRED&serverTimezone=UTC&allowPublicKeyRetrieval=true
+            DB_USERNAME: cambiazo
+            DB_PASSWORD: Cambiazo2027#
         run: mvn clean install
 
       - name: Upload artifact for deployment job
