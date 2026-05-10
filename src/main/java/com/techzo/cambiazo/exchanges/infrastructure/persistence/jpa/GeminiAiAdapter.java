@@ -79,9 +79,26 @@ public class GeminiAiAdapter implements AiSuggestionPort {
         String categoriesInline = String.join("|", categories);
 
         String prompt = """
-          Producto. Solo JSON ES:
-          {"n":nombre,"d":desc≤25w,"p":int PEN,"c":una de [%s],"s":tip foto (luz/fondo/enfoque),"sc":1-10,"v":"N|SEX|ARM|VIO|PII","vr":razón si v≠N}
-          v=N si OK; SEX=sexual, ARM=armas/drogas, VIO=violencia, PII=datos personales.
+          Eres un asistente que analiza fotos de productos para una app de trueques. Devuelve SOLO un JSON en español, sin markdown.
+          Estructura:
+          {
+            "n": "nombre corto del producto",
+            "d": "descripción atractiva en máx 25 palabras",
+            "p": número entero de precio sugerido en soles peruanos (PEN), sin texto ni símbolo,
+            "c": "una categoría exacta de esta lista: [%s]",
+            "s": "consejo breve para mejorar la foto (luz, fondo, enfoque, encuadre)",
+            "sc": número entero del 1 al 10 evaluando calidad de la foto,
+            "v": "N | SEX | ARM | VIO | PII",
+            "vr": "explicación en español natural y amable (1-2 frases) de por qué se marcó la violación, dirigida al usuario"
+          }
+          Para "v":
+            N   = sin problemas
+            SEX = contenido sexual o desnudez
+            ARM = armas, drogas u objetos ilegales
+            VIO = violencia o sangre
+            PII = datos personales visibles (DNI, tarjetas, direcciones, placas, rostros con datos, etc.)
+          Si v = N, "vr" debe ser una cadena vacía.
+          Si v ≠ N, "vr" debe explicar al usuario qué se detectó y por qué no puede publicarlo, en español claro y sin tecnicismos.
         """.formatted(categoriesInline);
 
         var body = Map.of(

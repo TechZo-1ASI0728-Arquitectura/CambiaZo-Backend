@@ -1,11 +1,11 @@
 package com.techzo.cambiazo.exchanges.domain.model;
 
 public enum ContentViolationType {
-    SEXUAL_EXPLICIT(60, "Contenido sexual explícito"),
-    WEAPONS_OR_DRUGS(60, "Armas o sustancias ilegales"),
-    VIOLENCE(60, "Contenido violento"),
-    PERSONAL_INFO(60, "Información personal sensible"),
-    NONE(0, "Sin violaciones");
+    SEXUAL_EXPLICIT(60, "Contenido sexual o desnudez"),
+    WEAPONS_OR_DRUGS(60, "Armas, drogas u objetos ilegales"),
+    VIOLENCE(60, "Imágenes violentas o sangrientas"),
+    PERSONAL_INFO(60, "Datos personales visibles (DNI, tarjetas, direcciones, etc.)"),
+    NONE(0, "Sin problemas detectados");
     
     private final int banDurationMinutes;
     private final String description;

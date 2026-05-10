@@ -78,7 +78,7 @@ public class ExchangeAiController {
 
 
             ContentViolationResource violation = new ContentViolationResource(
-                    e.getViolationType().name(),
+                    e.getViolationType().getDescription(),
                     e.getReason(),
                     (int) remainingMinutes + 1,
                     "Política de contenido de Cambiazo",

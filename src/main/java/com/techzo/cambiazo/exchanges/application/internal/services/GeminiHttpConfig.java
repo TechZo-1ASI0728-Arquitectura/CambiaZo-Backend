@@ -25,7 +25,7 @@ public class GeminiHttpConfig {
                         .addHandlerLast(new WriteTimeoutHandler(10)));
 
         return builder
-                .baseUrl("https://generativelanguage.googleapis.com/v1")
+                .baseUrl("https://generativelanguage.googleapis.com/v1beta")
                 .clientConnector(new ReactorClientHttpConnector(httpClient))
                 .exchangeStrategies(ExchangeStrategies.builder()
                         .codecs(c -> c.defaultCodecs().maxInMemorySize(2 * 1024 * 1024))
