@@ -101,4 +101,16 @@ public class Product extends AuditableAbstractAggregateRoot<Product> {
         return productCategoryId.getId();
     }
 
+    public User getUser() {
+        return userId;
+    }
+
+    public District getDistrict() {
+        return districtId;
+    }
+
+    public ProductCategory getProductCategory() {
+        return productCategoryId;
+    }
+
 }

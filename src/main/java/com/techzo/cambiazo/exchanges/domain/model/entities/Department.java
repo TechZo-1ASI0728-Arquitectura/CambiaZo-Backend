@@ -35,4 +35,8 @@ public class Department {
     public Long getCountryId() {
         return countryId.getId();
     }
+
+    public Country getCountry() {
+        return countryId;
+    }
 }

@@ -34,4 +34,8 @@ public class District {
     public Long getDepartmentId() {
         return departmentId.getId();
     }
+
+    public Department getDepartment() {
+        return departmentId;
+    }
 }
