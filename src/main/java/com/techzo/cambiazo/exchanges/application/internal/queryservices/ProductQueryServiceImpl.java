@@ -32,12 +32,6 @@ public class ProductQueryServiceImpl implements IProductQueryService {
     private final IDepartmentRepository departmentRepository;
 
     private final ICountryRepository countryRepository;
-    private final List<District>districts;
-    private final List<Department>departments;
-
-    private final List<Country>countries;
-
-    private final List<ProductCategory>categories;
 
     public ProductQueryServiceImpl(
             IProductRepository productRepository,
@@ -53,15 +47,15 @@ public class ProductQueryServiceImpl implements IProductQueryService {
         this.districtRepository = districtRepository;
         this.departmentRepository = departmentRepository;
         this.countryRepository = countryRepository;
-        this.districts = districtRepository.findAll();
-        this.departments = departmentRepository.findAll();
-        this.categories = productCategoryRepository.findAll();
-        this.countries = countryRepository.findAll();
     }
 
 
     @Override
     public Optional<ProductDto> handle(GetProductByIdQuery query) {
+        List<District> districts = districtRepository.findAll();
+        List<Department> departments = departmentRepository.findAll();
+        List<Country> countries = countryRepository.findAll();
+        List<ProductCategory> categories = productCategoryRepository.findAll();
         Product product = productRepository.findById(query.id())
                 .orElseThrow(() -> new IllegalArgumentException("Product with id "+query.id()+" not found"));
         District district = districts.stream().filter(d -> d.getId().equals(product.getDistrictId())).findFirst()
@@ -96,6 +90,10 @@ public class ProductQueryServiceImpl implements IProductQueryService {
 
     @Override
     public List<ProductDto> handle(GetAllProductsQuery query) {
+        List<District> districts = districtRepository.findAll();
+        List<Department> departments = departmentRepository.findAll();
+        List<Country> countries = countryRepository.findAll();
+        List<ProductCategory> categories = productCategoryRepository.findAll();
         List<Product>products = productRepository.findAll();
         List<User>users = userRepository.findAllWithRoles();
         return products.stream().map(product -> {
@@ -130,6 +128,10 @@ public class ProductQueryServiceImpl implements IProductQueryService {
 
     @Override
     public List<ProductDto> handle(GetAllProductsByUserIdQuery query) {
+        List<District> districts = districtRepository.findAll();
+        List<Department> departments = departmentRepository.findAll();
+        List<Country> countries = countryRepository.findAll();
+        List<ProductCategory> categories = productCategoryRepository.findAll();
         User user = userRepository.findById(query.userId())
                 .orElseThrow(() -> new IllegalArgumentException("User with id "+query.userId()+" not found"));
         var userResource = UserResource2FromEntityAssembler.toResourceFromEntity(user);
@@ -163,6 +165,9 @@ public class ProductQueryServiceImpl implements IProductQueryService {
 
     @Override
     public List<ProductDto> handle(GetAllProductsByProductCategoryIdQuery query) {
+        List<District> districts = districtRepository.findAll();
+        List<Department> departments = departmentRepository.findAll();
+        List<Country> countries = countryRepository.findAll();
         ProductCategory productCategory = productCategoryRepository.findById(query.productCategoryId())
                 .orElseThrow(()->new IllegalArgumentException("Product Category with id "+query.productCategoryId()+" not found"));
         List<User>users = userRepository.findAll();
