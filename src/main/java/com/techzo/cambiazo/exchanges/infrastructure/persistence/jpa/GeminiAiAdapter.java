@@ -30,7 +30,7 @@ public class GeminiAiAdapter implements AiSuggestionPort {
     @Value("${gemini.api.key}")
     private String geminiApiKey;
 
-    private static final String MODEL_VISION = "models/gemini-2.0-flash";
+    private static final String MODEL_VISION = "models/gemini-2.5-flash-lite";
 
     public GeminiAiAdapter(
             @Qualifier("geminiWebClient") WebClient geminiWebClient,
@@ -79,9 +79,9 @@ public class GeminiAiAdapter implements AiSuggestionPort {
         String categoriesInline = String.join("|", categories);
 
         String prompt = """
-          Output ONLY a JSON object in Spanish. No markdown.
-          Fields: {"name":"str","description":"str(≤25w)","price":"integer in PEN (no text or symbol)","category":"one of: %s","suggest":"short Spanish tips to improve the photo (lighting, background, angle, focus, framing, resolution)","score":"int 1-10","contentViolation":"NONE|SEXUAL_EXPLICIT|WEAPONS_OR_DRUGS|VIOLENCE|PERSONAL_INFO","violationReason":"explanation if violation detected"}
-          Rules: category from list; concise and accurate. contentViolation: NONE if appropriate, otherwise specify violation type.
+          Producto. Solo JSON ES:
+          {"n":nombre,"d":desc≤25w,"p":int PEN,"c":una de [%s],"s":tip foto (luz/fondo/enfoque),"sc":1-10,"v":"N|SEX|ARM|VIO|PII","vr":razón si v≠N}
+          v=N si OK; SEX=sexual, ARM=armas/drogas, VIO=violencia, PII=datos personales.
         """.formatted(categoriesInline);
 
         var body = Map.of(
@@ -95,7 +95,8 @@ public class GeminiAiAdapter implements AiSuggestionPort {
                         ))
                 ),
                 "generationConfig", Map.of(
-                        "temperature", 0.2
+                        "temperature", 0.2,
+                        "responseMimeType", "application/json"
                 )
         );
 
@@ -127,20 +128,40 @@ public class GeminiAiAdapter implements AiSuggestionPort {
                         String cleaned = trimFence(p.get("text").asText().trim());
                         JsonNode obj = mapper.readTree(cleaned);
                         return new SuggestionPayload(
-                                optText(obj, "name"),
-                                optText(obj, "description"),
-                                optText(obj, "price"),
-                                optText(obj, "category"),
-                                optText(obj, "suggest"),
-                                optText(obj, "score"),
-                                optText(obj, "contentViolation"),
-                                optText(obj, "violationReason")
+                                firstNonBlank(obj, "n", "name"),
+                                firstNonBlank(obj, "d", "description"),
+                                firstNonBlank(obj, "p", "price"),
+                                firstNonBlank(obj, "c", "category"),
+                                firstNonBlank(obj, "s", "suggest"),
+                                firstNonBlank(obj, "sc", "score"),
+                                expandViolation(firstNonBlank(obj, "v", "contentViolation")),
+                                firstNonBlank(obj, "vr", "violationReason")
                         );
                     }
                 }
             }
         } catch (Exception ignored) {}
         return new SuggestionPayload("", "", "", "", "", "", "NONE", "");
+    }
+
+    private static String firstNonBlank(JsonNode obj, String... fields) {
+        for (String f : fields) {
+            String v = optText(obj, f);
+            if (v != null && !v.isBlank()) return v;
+        }
+        return "";
+    }
+
+    private static String expandViolation(String code) {
+        if (code == null || code.isBlank()) return "NONE";
+        return switch (code.trim().toUpperCase(Locale.ROOT)) {
+            case "N", "NONE" -> "NONE";
+            case "SEX", "SEXUAL_EXPLICIT" -> "SEXUAL_EXPLICIT";
+            case "ARM", "WEAPONS_OR_DRUGS" -> "WEAPONS_OR_DRUGS";
+            case "VIO", "VIOLENCE" -> "VIOLENCE";
+            case "PII", "PERSONAL_INFO" -> "PERSONAL_INFO";
+            default -> "NONE";
+        };
     }
 
     private static String trimFence(String s) {

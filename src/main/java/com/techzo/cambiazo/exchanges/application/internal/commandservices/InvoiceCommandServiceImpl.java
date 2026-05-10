@@ -1,9 +1,7 @@
 package com.techzo.cambiazo.exchanges.application.internal.commandservices;
 
 import jakarta.annotation.PostConstruct;
-import org.springframework.beans.factory.annotation.Value;
-import com.google.cloud.storage.BlobInfo;
-import com.google.cloud.storage.Storage;
+import com.techzo.cambiazo.shared.infrastructure.storage.AzureBlobStorageService;
 import com.lowagie.text.*;
 import com.lowagie.text.Font;
 import com.lowagie.text.Image;
@@ -45,19 +43,16 @@ public class InvoiceCommandServiceImpl implements IInvoiceCommandService {
     private final IInvoiceRepository invoiceRepository;
     private final UserRepository userRepository;
     private final JavaMailSender mailSender;
-    private final Storage           storage;
-    private String bucket;
+    private final AzureBlobStorageService storageService;
 
     public InvoiceCommandServiceImpl(IInvoiceRepository invoiceRepository,
                                      UserRepository userRepository,
                                      JavaMailSender mailSender,
-                                     Storage storage,
-                                     @Value("${firebase.bucket.name}") String bucket) {
+                                     AzureBlobStorageService storageService) {
         this.invoiceRepository = invoiceRepository;
         this.userRepository = userRepository;
         this.mailSender = mailSender;
-        this.storage = storage;
-        this.bucket = bucket;
+        this.storageService = storageService;
     }
 
     @Override
@@ -84,14 +79,8 @@ public class InvoiceCommandServiceImpl implements IInvoiceCommandService {
         try {
             byte[] pdf = buildPdfBytes(invoice);
             String objectName = "invoices/" + invoiceNumber + ".pdf";
-            storage.create(
-                    BlobInfo.newBuilder(bucket, objectName)
-                            .setContentType("application/pdf")
-                            .build(),
-                    pdf
-            );
-            String gsPath = "gs://" + bucket + "/" + objectName;
-            invoice.setFilePath(gsPath);
+            String url = storageService.uploadBytes(pdf, objectName, "application/pdf");
+            invoice.setFilePath(url);
 
             invoiceRepository.save(invoice);
             sendInvoiceEmail(user.getUsername(), invoice, pdf);

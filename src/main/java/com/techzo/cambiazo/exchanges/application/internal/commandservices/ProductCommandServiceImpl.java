@@ -9,6 +9,7 @@ import com.techzo.cambiazo.exchanges.domain.services.IProductCommandService;
 import com.techzo.cambiazo.exchanges.infrastructure.persistence.jpa.*;
 import com.techzo.cambiazo.iam.domain.model.aggregates.User;
 import com.techzo.cambiazo.iam.infrastructure.persistence.jpa.repositories.UserRepository;
+import com.techzo.cambiazo.shared.infrastructure.storage.AzureBlobStorageService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -38,7 +39,9 @@ public class ProductCommandServiceImpl implements IProductCommandService {
 
     private final IExchangeRepository exchangeRepository;
 
-    public ProductCommandServiceImpl(IProductRepository productRepository, UserRepository userRepository, IProductCategoryRepository productCategoryRepository, IDistrictRepository districtRepository, IFavoriteProductRepository favoriteProductRepository, ISubscriptionRepository subscriptionRepository, IPlanRepository planRepository, IExchangeRepository exchangeRepository) {
+    private final AzureBlobStorageService storageService;
+
+    public ProductCommandServiceImpl(IProductRepository productRepository, UserRepository userRepository, IProductCategoryRepository productCategoryRepository, IDistrictRepository districtRepository, IFavoriteProductRepository favoriteProductRepository, ISubscriptionRepository subscriptionRepository, IPlanRepository planRepository, IExchangeRepository exchangeRepository, AzureBlobStorageService storageService) {
         this.productRepository = productRepository;
         this.userRepository = userRepository;
         this.productCategoryRepository = productCategoryRepository;
@@ -47,6 +50,7 @@ public class ProductCommandServiceImpl implements IProductCommandService {
         this.subscriptionRepository = subscriptionRepository;
         this.planRepository = planRepository;
         this.exchangeRepository = exchangeRepository;
+        this.storageService = storageService;
     }
 
     @Override
@@ -181,9 +185,17 @@ public class ProductCommandServiceImpl implements IProductCommandService {
 
         List<Exchange> exchanges = exchangeRepository.findAllExchangesByProductOwnIdOrProductChangeId(product.get());
 
+        String imageUrl = product.get().getImage();
+
         exchangeRepository.deleteAll(exchanges);
         favoriteProductRepository.deleteAll(favoriteProducts);
         productRepository.delete(product.get());
+
+        try {
+            storageService.deleteByUrl(imageUrl);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
         return true;
     }
 }
