@@ -13,6 +13,7 @@ import org.springframework.stereotype.Repository;
 import java.time.LocalDate;
 import java.util.Date;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface IProductRepository extends JpaRepository<Product, Long> {
@@ -28,6 +29,42 @@ public interface IProductRepository extends JpaRepository<Product, Long> {
             LEFT JOIN FETCH dep.countryId
             """)
     List<Product> findAllWithRelations();
+
+    @Query("""
+            SELECT DISTINCT p FROM Product p
+            LEFT JOIN FETCH p.productCategoryId
+            LEFT JOIN FETCH p.userId u
+            LEFT JOIN FETCH u.roles
+            LEFT JOIN FETCH p.districtId d
+            LEFT JOIN FETCH d.departmentId dep
+            LEFT JOIN FETCH dep.countryId
+            WHERE p.id = :id
+            """)
+    Optional<Product> findByIdWithRelations(@Param("id") Long id);
+
+    @Query("""
+            SELECT DISTINCT p FROM Product p
+            LEFT JOIN FETCH p.productCategoryId
+            LEFT JOIN FETCH p.userId u
+            LEFT JOIN FETCH u.roles
+            LEFT JOIN FETCH p.districtId d
+            LEFT JOIN FETCH d.departmentId dep
+            LEFT JOIN FETCH dep.countryId
+            WHERE p.userId = :user
+            """)
+    List<Product> findProductsByUserIdWithRelations(@Param("user") User user);
+
+    @Query("""
+            SELECT DISTINCT p FROM Product p
+            LEFT JOIN FETCH p.productCategoryId
+            LEFT JOIN FETCH p.userId u
+            LEFT JOIN FETCH u.roles
+            LEFT JOIN FETCH p.districtId d
+            LEFT JOIN FETCH d.departmentId dep
+            LEFT JOIN FETCH dep.countryId
+            WHERE p.productCategoryId = :category
+            """)
+    List<Product> findProductsByProductCategoryIdWithRelations(@Param("category") ProductCategory category);
 
     List<Product>findProductsByUserId(User userId);
 
