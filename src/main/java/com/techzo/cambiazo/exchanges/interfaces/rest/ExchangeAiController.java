@@ -62,23 +62,39 @@ public class ExchangeAiController {
             ProductSuggestionResource suggestion = aiService.suggestAllFromImage(file.getBytes(), ct);
             return ResponseEntity.ok(suggestion);
         } catch (ContentViolationException e) {
+            var violationType = e.getViolationType();
+
+            // Violaciones leves (ban = 0 min, p. ej. fotos de personas) solo se rechazan,
+            // sin castigar al usuario. Las graves (sexual, armas, violencia, datos) sí banean.
+            if (violationType.getBanDurationMinutes() <= 0) {
+                ContentViolationResource rejection = new ContentViolationResource(
+                        violationType.getDescription(),
+                        e.getReason(),
+                        0,
+                        "Política de contenido de Cambiazo",
+                        false,
+                        null
+                );
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(rejection);
+            }
+
             // Process the content violation and ban the user
             var violationCommand = new ProcessContentViolationCommand(
                 userId,
-                e.getViolationType(),
+                violationType,
                 e.getReason()
             );
-            
+
             // Process the violation and ban the user
             contentViolationCommandService.processContentViolation(violationCommand);
-            
+
             // Get remaining ban minutes for response
             long remainingMinutes = contentViolationCommandService.getRemainingBanMinutes(userId);
             Map<String, Object> banInfo = iamAclOutboundService.getUserBanInfo(userId);
 
 
             ContentViolationResource violation = new ContentViolationResource(
-                    e.getViolationType().getDescription(),
+                    violationType.getDescription(),
                     e.getReason(),
                     (int) remainingMinutes + 1,
                     "Política de contenido de Cambiazo",
