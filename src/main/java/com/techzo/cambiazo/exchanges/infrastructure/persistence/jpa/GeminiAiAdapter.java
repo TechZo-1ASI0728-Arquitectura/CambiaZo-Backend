@@ -12,8 +12,10 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
+import reactor.util.retry.Retry;
 
 import java.text.Normalizer;
+import java.time.Duration;
 import java.util.Base64;
 import java.util.List;
 import java.util.Locale;
@@ -30,7 +32,8 @@ public class GeminiAiAdapter implements AiSuggestionPort {
     @Value("${gemini.api.key}")
     private String geminiApiKey;
 
-    private static final String MODEL_VISION = "models/gemini-2.5-flash-lite";
+    @Value("${gemini.model}")
+    private String modelVision;
 
     public GeminiAiAdapter(
             @Qualifier("geminiWebClient") WebClient geminiWebClient,
@@ -88,7 +91,7 @@ public class GeminiAiAdapter implements AiSuggestionPort {
             "c": "una categoría exacta de esta lista: [%s]",
             "s": "consejo breve para mejorar la foto (luz, fondo, enfoque, encuadre)",
             "sc": número entero del 1 al 10 evaluando calidad de la foto,
-            "v": "N | SEX | ARM | VIO | PII",
+            "v": "N | SEX | ARM | VIO | CAD | PII | PER | ANI",
             "vr": "explicación en español natural y amable (1-2 frases) de por qué se marcó la violación, dirigida al usuario"
           }
           Para "v":
@@ -96,7 +99,11 @@ public class GeminiAiAdapter implements AiSuggestionPort {
             SEX = contenido sexual o desnudez
             ARM = armas, drogas u objetos ilegales
             VIO = violencia o sangre
-            PII = datos personales visibles (DNI, tarjetas, direcciones, placas, rostros con datos, etc.)
+            CAD = cadáveres o cuerpos sin vida (humanos o animales muertos)
+            PII = datos personales visibles (DNI, tarjetas, direcciones, placas, etc.)
+            PER = la imagen muestra a una persona viva como sujeto principal: rostro o cuerpo de bebés, niños o adultos. Cambiazo solo permite fotos de productos u objetos, no de personas. Un producto sostenido por una mano no cuenta como persona.
+            ANI = la imagen muestra a un animal o mascota vivo como sujeto principal (perro, gato, ave, etc.). Solo se permiten fotos de productos u objetos, no de animales. Un producto con estampado o forma de animal (peluche, juguete) NO cuenta como animal.
+          Si aplican varias categorías, prioriza en este orden de gravedad: SEX, ARM, VIO, CAD, PII, PER, ANI.
           Si v = N, "vr" debe ser una cadena vacía.
           Si v ≠ N, "vr" debe explicar al usuario qué se detectó y por qué no puede publicarlo, en español claro y sin tecnicismos.
         """.formatted(categoriesInline);
@@ -119,16 +126,38 @@ public class GeminiAiAdapter implements AiSuggestionPort {
 
         try {
             return webClient.post()
-                    .uri("/" + MODEL_VISION + ":generateContent?key=" + geminiApiKey)
+                    .uri("/" + modelVision + ":generateContent?key=" + geminiApiKey)
                     .contentType(MediaType.APPLICATION_JSON)
                     .accept(MediaType.APPLICATION_JSON)
                     .bodyValue(body)
                     .retrieve()
                     .bodyToMono(String.class)
+                    // Reintenta ante saturación/errores transitorios de Gemini con backoff exponencial.
+                    // Hasta 3 reintentos: ~0.7s, ~1.4s, ~2.8s (con jitter, tope 4s).
+                    .retryWhen(Retry.backoff(3, Duration.ofMillis(700))
+                            .maxBackoff(Duration.ofSeconds(4))
+                            .jitter(0.3)
+                            .filter(GeminiAiAdapter::isRetryableGeminiError)
+                            // Tras agotar reintentos, relanza el error original (no el de Reactor)
+                            // para que el catch de abajo lo maneje igual que siempre.
+                            .onRetryExhaustedThrow((spec, signal) -> signal.failure()))
                     .block();
         } catch (WebClientResponseException e) {
             throw new IllegalStateException("Gemini vision error " + e.getStatusCode() + ": " + e.getResponseBodyAsString(), e);
         }
+    }
+
+    /**
+     * Determina si un error de Gemini es transitorio y vale la pena reintentar:
+     * 503 (saturación / "high demand"), 429 (rate limit) o 500 (error interno).
+     * El resto (400, 401, 404, etc.) son errores definitivos y no se reintentan.
+     */
+    private static boolean isRetryableGeminiError(Throwable t) {
+        if (t instanceof WebClientResponseException e) {
+            int status = e.getStatusCode().value();
+            return status == 503 || status == 429 || status == 500;
+        }
+        return false;
     }
 
     private record SuggestionPayload(String name, String description, String price, String category,
@@ -176,7 +205,10 @@ public class GeminiAiAdapter implements AiSuggestionPort {
             case "SEX", "SEXUAL_EXPLICIT" -> "SEXUAL_EXPLICIT";
             case "ARM", "WEAPONS_OR_DRUGS" -> "WEAPONS_OR_DRUGS";
             case "VIO", "VIOLENCE" -> "VIOLENCE";
+            case "CAD", "CADAVER" -> "CADAVER";
             case "PII", "PERSONAL_INFO" -> "PERSONAL_INFO";
+            case "PER", "PERSON" -> "PERSON";
+            case "ANI", "ANIMAL" -> "ANIMAL";
             default -> "NONE";
         };
     }
